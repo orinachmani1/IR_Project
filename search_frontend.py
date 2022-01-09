@@ -11,18 +11,19 @@ TF_MASK = 2 ** 16 - 1  # Masking the 16 low bits of an integer
 from contextlib import closing
 
 class MyFlaskApp(Flask):
-    # def read_posting_list(inverted, w):
-    #     with closing(inverted_index_colab.MultiFileReader()) as reader:
-    #         locs = inverted.posting_locs[w]
-    #         s = str(locs[0][0])
-    #         locs=[("C:\\Users\\HP\\Desktop\\postings_gcp\\"+s, locs[0][1])]
-    #         b = reader.read(locs, inverted.df[w] * TUPLE_SIZE)
-    #         posting_list = []
-    #         for i in range(inverted.df[w]):
-    #             doc_id = int.from_bytes(b[i * TUPLE_SIZE:i * TUPLE_SIZE + 4], 'big')
-    #             tf = int.from_bytes(b[i * TUPLE_SIZE + 4:(i + 1) * TUPLE_SIZE], 'big')
-    #             posting_list.append((doc_id, tf))
-    #         return posting_list
+    def read_posting_list(self, w):
+        inverted_title = self.inverted_title
+        with closing(inverted_index_colab.MultiFileReader()) as reader:
+            locs = inverted_title.posting_locs[w]
+            s = str(locs[0][0])
+            locs=[("C:\\Users\\HP\\Desktop\\postings_gcp\\"+s, locs[0][1])]
+            b = reader.read(locs, inverted_title.df[w] * TUPLE_SIZE)
+            posting_list = []
+            for i in range(inverted_title.df[w]):
+                doc_id = int.from_bytes(b[i * TUPLE_SIZE:i * TUPLE_SIZE + 4], 'big')
+                tf = int.from_bytes(b[i * TUPLE_SIZE + 4:(i + 1) * TUPLE_SIZE], 'big')
+                posting_list.append((doc_id, tf))
+            return posting_list
 
     def read_posting_list(self, w):
         inverted = self.inverted
@@ -112,61 +113,63 @@ class MyFlaskApp(Flask):
         # request.post(url="http://192.168.14.2:8080/get_pagerank", json=[1, 2, 3])
         # get_pagerank()
         self.inverted = inverted_index_gcp.InvertedIndex()
+        self.inverted_title = inverted_index_gcp.InvertedIndex()
         self.corpus_size = 6348910
         self.id_len_dict = None
         self.id_title_dict = None
-        self.id_page_rank_dict={}
-        self.id_page_rank_dict2={}
+        self.id_page_rank_dict = {}
+        self.id_page_rank_dict2 = {}
         self.id_page_view_dict = {}
         self.id_page_view_dict2 = {}
 
+        # load body index
+        with open('C:\\Users\\HP\\Desktop\\postings_gcp\\index.pkl', 'rb') as f:
+            data = pickle.load(f)
+            #self.inverted.read_index()
+            self.inverted.df = data.df
+            self.inverted.posting_locs = data.posting_locs
+
+        # load title index
+        with open('C:\\Users\\HP\\Desktop\\project data\\bucket\\postings_gcp_title\\index.pkl', 'rb') as f:
+            data = pickle.load(f)
+            #self.inverted.read_index()
+            self.inverted_title.df = data.df
+            self.inverted_title.posting_locs = data.posting_locs
+        for i in range(0, 124):
+            path = 'C:\\Users\\HP\\Desktop\\project data\\bucket\\postings_gcp\\' + str(i) + '_posting_locs.pickle'
+            print(path)
+            with open(path, 'rb') as f:
+                data = pickle.load(f)
+                self.inverted_title.posting_locs.update(data)
+
+        # load {id: page_view} dict
         with open('C:\\Users\\HP\\Desktop\\project data\\page_views.pkl', 'rb') as f:
             data = pickle.load(f)
             self.id_page_view_dict = data
-            # self.inverted.df = data.df
-            # self.inverted.posting_locs = data.posting_locs
 
+        # load {id: len} dict
+        with open('C:\\Users\\HP\\Desktop\\project data\\docs_total_tokens.pkl', 'rb') as f:
+            self.id_len_dict = pickle.load(f)
 
-        # #self.inverted2 = inverted_index_gcp.InvertedIndex()
-        # # load body index
-        # with open('C:\\Users\\HP\\Desktop\\postings_gcp\\index.pkl', 'rb') as f:
-        #     data = pickle.load(f)
-        #     self.inverted.df = data.df
-        #     self.inverted.posting_locs = data.posting_locs
-        #
-        # # load {id: len} dict
-        # with open('C:\\Users\\HP\\Desktop\\project data\\docs_total_tokens.pkl', 'rb') as f:
-        #     self.id_len_dict = pickle.load(f)
-        #
-        # # load {id: title} dict
-        # with open('C:\\Users\\HP\\Desktop\\project data\\id_title_dict.pkl', 'rb') as f:
-        #     self.id_title_dict = pickle.load(f)
-        #     print()
-        # # with open('C:\\Users\\HP\\Downloads\\postings_gcp_0_posting_locs.pickle', 'rb') as f:
-        # #     data = pickle.load(f)
-        # #     print(data)
-        # #     self.inverted2.df=data.df
-        # #     self.inverted2.posting_locs=data.posting_locs
+        # load {id: title} dict
+        with open('C:\\Users\\HP\\Desktop\\project data\\id_title_dict.pkl', 'rb') as f:
+            self.id_title_dict = pickle.load(f)
+            print()
+
+        # load {id: page_rank} dict
+        with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
+            reader = csv.reader(inp)
+            print(reader)
+            i = 0
+            for row in reader:
+                i+=1
+                if i > 4000000:
+                    self.id_page_rank_dict2[row[0]]=row[1]
+                else:
+                    self.id_page_rank_dict[row[0]]=row[1]
+
         # # a= self.read_posting_list2('perry')
-
-        # with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
-        #     reader = csv.reader(inp)
-        #     print(reader)
-        #     i = 0
-        #     for row in reader:
-        #         i+=1
-        #         if i > 4000000:
-        #             self.id_page_rank_dict2[row[0]]=row[1]
-        #         else:
-        #             self.id_page_rank_dict[row[0]]=row[1]
-
-
         #a = app.get_page_rank_by_id([1,2,3])
-        #
-        #         # break
-        #     print()
-        #     #self.mydict = dict((rows[0], rows[1]) for rows in reader)
-        #     #print()
 
         super(MyFlaskApp, self).run(host=host, port=port, debug=debug, **options)
 

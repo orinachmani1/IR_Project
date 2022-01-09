@@ -15,6 +15,8 @@ from collections import defaultdict
 from contextlib import closing
 
 # Let's start with a small block size of 30 bytes just to test things out.
+from django.core.files import storage
+
 BLOCK_SIZE = 1999998
 
 
