@@ -4,7 +4,7 @@ import csv
 from flask import Flask, request, jsonify
 import inverted_index_colab
 import inverted_index_gcp
-import request
+# import request
 
 TUPLE_SIZE = 6
 TF_MASK = 2 ** 16 - 1  # Masking the 16 low bits of an integer
@@ -12,14 +12,14 @@ from contextlib import closing
 
 class MyFlaskApp(Flask):
     def read_posting_list(self, w):
-        inverted_title = self.inverted_title
+        inverted= self.inverted
         with closing(inverted_index_gcp.MultiFileReader()) as reader:
-            locs = inverted_title.posting_locs[w]
+            locs = inverted.posting_locs[w]
             s = str(locs[0][0])
             locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\"+s, locs[0][1])]
-            b = reader.read(locs, inverted_title.df[w] * TUPLE_SIZE)
+            b = reader.read(locs, inverted.df[w] * TUPLE_SIZE)
             posting_list = []
-            for i in range(inverted_title.df[w]):
+            for i in range(inverted.df[w]):
                 doc_id = int.from_bytes(b[i * TUPLE_SIZE:i * TUPLE_SIZE + 4], 'big')
                 tf = int.from_bytes(b[i * TUPLE_SIZE + 4:(i + 1) * TUPLE_SIZE], 'big')
                 posting_list.append((doc_id, tf))
@@ -51,15 +51,35 @@ class MyFlaskApp(Flask):
     #             tf = int.from_bytes(b[i * TUPLE_SIZE + 4:(i + 1) * TUPLE_SIZE], 'big')
     #             posting_list.append((doc_id, tf))
     #         return posting_list
-    def get_top_100_pages(self, query):
+    def search(self, query):
+        body_top = app.get_top_pages_by_body(query)
+        # print(body_top)
+        title_top = app.get_top_pages_by_title(query)
+        # print(title_top)
+
+        merge = {}
+        for i in body_top.keys():
+            body_top[i] = body_top[i] * 0.6
+            merge[i] = body_top[i]
+        for j in title_top.keys():
+            title_top[j] = title_top[j] * 1000
+            if j in merge:
+                merge[j] = merge[j] + title_top[j]
+            else:
+                merge[j] = title_top[j]
+        top = dict(sorted(merge.items(), key=lambda item: item[1], reverse=True))
+        print(top)
+        id = app.get_top_100_id(top)
+        id_title = app.get_id_title(id)
+        return id_title
+
+    def get_top_pages_by_body(self, query):
         tfidf = {}
         for word in query:
             if word not in self.inverted.df.keys():
                 continue
-            # TODO - remove comment
             word_list = self.read_posting_list(word)
             #word_list = [(12,2), (25,3), (39,2)]
-
             # doc_len = {12:4, 14:3, 173:10}
             # self.corpus_size = 6,300,000
 
@@ -70,20 +90,22 @@ class MyFlaskApp(Flask):
             for id_tf in word_list:
                 doc_id = id_tf[0]  # 12
                 tf = id_tf[1]  # 2
+                if tf==0:
+                    continue
                 doc_len_normal = self.id_len_dict[doc_id]  # 4, 3, 10
-                if doc_len_normal<100:
+                if doc_len_normal < 100:
                     doc_len_normal *= 10000
                 elif doc_len_normal > 1500:
-                    doc_len_normal /= 10000
-                elif doc_len_normal > 500:
-                    doc_len_normal /= 1000
-                elif doc_len_normal > 300:
                     doc_len_normal /= 100
-                elif doc_len_normal > 50:
+                elif doc_len_normal > 500:
                     doc_len_normal /= 10
+                elif doc_len_normal > 300:
+                    doc_len_normal /= 10
+                elif doc_len_normal > 50:
+                    doc_len_normal /= 5
 
                 # elif doc_len_normal > 700:
-                #     doc_len_normal /= 100000
+                #     doc_len_normal /= 1000
 
                 normalized_tf = tf / doc_len_normal
                 tfidf_value = normalized_tf * idf
@@ -95,11 +117,33 @@ class MyFlaskApp(Flask):
             # tfidf = {12:0.5, 14:1, 173:0.2}
             # tfidf = {12:(0.5 * 0.41),14:(1 * 0.41), 173:(0.2 * 0.41)}
 
-            tfidf = dict(sorted(tfidf.items(), key=lambda item: item[1], reverse=True))
-            # tfidf = {14:0.41, 12:0.205, 173:0.08}
+        tfidf = dict(sorted(tfidf.items(), key=lambda item: item[1], reverse=True))
+        # tfidf = {14:0.41, 12:0.205, 173:0.08}
 
-            best_100_id = list(tfidf.keys())[0:100]
-            return best_100_id
+        return tfidf
+        # best_100_id = list(tfidf.keys())[0:100]
+        # return best_100_id
+
+    def get_top_pages_by_title(self, query):
+        bool_dict = {}
+        doc_id = 0
+        tf = 0
+        for word in query:
+            if word not in self.inverted_title.df.keys():
+                continue
+            word_list = self.read_posting_list_title(word)
+            for id_tf in word_list:
+                doc_id = id_tf[0]  # 12
+                tf = id_tf[1]  # 1
+                if doc_id in bool_dict.keys():
+                    bool_dict[doc_id] = bool_dict[doc_id] + tf
+                else:
+                    bool_dict[doc_id] = tf
+        bool_dict = dict(sorted(bool_dict.items(), key=lambda item: item[1], reverse=True))
+        return bool_dict
+
+        # best_100_id = list(bool_dict.keys())[0:100]
+        # return best_100_id
 
     def get_id_title(self, id_list):
         titles = []
@@ -131,12 +175,10 @@ class MyFlaskApp(Flask):
         # load title index
         with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\index.pkl', 'rb') as f:
             data = pickle.load(f)
-            #self.inverted.read_index()
             self.inverted_title.df = data.df
             self.inverted_title.posting_locs = data.posting_locs
         for i in range(0, 124):
             path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\' + str(i) + '_posting_locs.pickle'
-            print(path)
             with open(path, 'rb') as f:
                 data = pickle.load(f)
                 self.inverted_title.posting_locs.update(data)
@@ -167,9 +209,25 @@ class MyFlaskApp(Flask):
                 else:
                     self.id_page_rank_dict[row[0]]=row[1]
 
-        # # a= self.read_posting_list2('perry')
-        #a = app.get_page_rank_by_id([1,2,3])
+        # *** evaluation ***
+        # for i in x.keys():
+        #     q = i.split(' ')
+        #     true = x[i]
+        #     print(i)
+        #     print(true)
+        #     pred = app.get_top_pages_by_title(q)
+        #     id = app.get_top_100_id(pred)
+        #     x = app.average_precision(true,id)
+        #     print(x)
 
+        # a= self.read_posting_list2('perry')
+        #a = app.get_page_rank_by_id([1,2,3])
+        # a = app.get_top_pages_by_title(["python"])
+        # a = app.get_top_100_id(a)
+        # b = [23862, 23329, 53672527, 21356332, 4920126, 5250192, 819149, 46448252, 83036, 88595, 18942, 696712, 2032271, 1984246, 5204237, 645111, 18384111, 3673376, 25061839, 271890, 226402, 2380213, 1179348, 15586616, 50278739, 19701, 3596573, 4225907, 19160, 1235986, 6908561, 3594951, 18805500, 5087621, 25049240, 2432299, 381782, 9603954, 390263, 317752, 38007831, 2564605, 13370873, 2403126, 17402165, 23678545, 7837468, 23954341, 11505904, 196698, 34292335, 52042, 2247376, 15858, 11322015, 13062829, 38833779, 7800160, 24193668, 440018, 54351136, 28887886, 19620, 23045823, 43003632, 746577, 1211612, 8305253, 14985517, 30796675, 51800, 964717, 6146589, 13024, 11583987, 57294217, 27471338, 5479462]
+
+
+        # print(x)
         super(MyFlaskApp, self).run(host=host, port=port, debug=debug, **options)
 
     def get_page_rank_by_id(self, wiki_ids):
@@ -196,6 +254,21 @@ class MyFlaskApp(Flask):
         print(res)
         return res
 
+    def get_top_100_id(self, dict_score):
+        best_100_id = list(dict_score.keys())[0:100]
+        return best_100_id
+
+    def average_precision(self, true_list, predicted_list, k=40):
+        true_set = frozenset(true_list)
+        predicted_list = predicted_list[:k]
+        precisions = []
+        for i, doc_id in enumerate(predicted_list):
+            if doc_id in true_set:
+                prec = (len(precisions) + 1) / (i + 1)
+                precisions.append(prec)
+        if len(precisions) == 0:
+            return 0.0
+        return round(sum(precisions) / len(precisions), 3)
 
 app = MyFlaskApp(__name__)
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = False
@@ -221,18 +294,18 @@ def search():
     '''
     res = []
     query = request.args.get('query', '')
-    print(query)
     query = query.split()
+    for i in range(len(query)):
+        query[i] = query[i].lower()
+    print(query)
     if len(query) == 0:
       return jsonify(res)
     # BEGIN SOLUTION
-    # inv = app.inverted
-    # query = list(query)
-    x = app.get_top_100_pages(query)
-    #print(x)
-    y = app.get_id_title(x)
-    # print(y)
-    res = y
+    res = app.search(query)
+    print(res)
+    # top_100_id = app.get_top_100_pages(query)
+    # top_100_id_title = app.get_id_title(top_100_id)
+    # res = top_100_id_title
     # END SOLUTION
     return jsonify(res)
 
@@ -254,11 +327,17 @@ def search_body():
     '''
     res = []
     query = request.args.get('query', '')
+    query = query.split()
+    for i in range(len(query)):
+        query[i] = query[i].lower()
     # print(query)
     if len(query) == 0:
       return jsonify(res)
     # BEGIN SOLUTION
-
+    top_id_score = app.get_top_pages_by_body(query)
+    top_100_id = app.get_top_100_id(top_id_score)
+    top_100_id_title = app.get_id_title(top_100_id)
+    res = top_100_id_title
     # END SOLUTION
     return jsonify(res)
 
@@ -281,10 +360,17 @@ def search_title():
     '''
     res = []
     query = request.args.get('query', '')
+    query = query.split()
+    for i in range(len(query)):
+        query[i] = query[i].lower()
     if len(query) == 0:
       return jsonify(res)
+    print(query)
     # BEGIN SOLUTION
-
+    top_id_score_title = app.get_top_pages_by_title(query)
+    id = app.get_top_100_id(top_id_score_title)
+    id_title = app.get_id_title(id)
+    res = id_title
     # END SOLUTION
     return jsonify(res)
 
