@@ -13,10 +13,10 @@ from contextlib import closing
 class MyFlaskApp(Flask):
     def read_posting_list(self, w):
         inverted_title = self.inverted_title
-        with closing(inverted_index_colab.MultiFileReader()) as reader:
+        with closing(inverted_index_gcp.MultiFileReader()) as reader:
             locs = inverted_title.posting_locs[w]
             s = str(locs[0][0])
-            locs=[("C:\\Users\\HP\\Desktop\\postings_gcp\\"+s, locs[0][1])]
+            locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\"+s, locs[0][1])]
             b = reader.read(locs, inverted_title.df[w] * TUPLE_SIZE)
             posting_list = []
             for i in range(inverted_title.df[w]):
@@ -25,12 +25,12 @@ class MyFlaskApp(Flask):
                 posting_list.append((doc_id, tf))
             return posting_list
 
-    def read_posting_list(self, w):
-        inverted = self.inverted
+    def read_posting_list_title(self, w):
+        inverted = self.inverted_title
         with closing(inverted_index_gcp.MultiFileReader()) as reader:
             locs = inverted.posting_locs[w]
             s = str(locs[0][0])
-            locs=[("C:\\Users\\HP\\Desktop\\postings_gcp\\"+s, locs[0][1])]
+            locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\"+s, locs[0][1])]
             b = reader.read(locs, inverted.df[w] * TUPLE_SIZE)
             posting_list = []
             for i in range(inverted.df[w]):
@@ -123,20 +123,19 @@ class MyFlaskApp(Flask):
         self.id_page_view_dict2 = {}
 
         # load body index
-        with open('C:\\Users\\HP\\Desktop\\postings_gcp\\index.pkl', 'rb') as f:
+        with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\index.pkl', 'rb') as f:
             data = pickle.load(f)
-            #self.inverted.read_index()
             self.inverted.df = data.df
             self.inverted.posting_locs = data.posting_locs
 
         # load title index
-        with open('C:\\Users\\HP\\Desktop\\project data\\bucket\\postings_gcp_title\\index.pkl', 'rb') as f:
+        with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\index.pkl', 'rb') as f:
             data = pickle.load(f)
             #self.inverted.read_index()
             self.inverted_title.df = data.df
             self.inverted_title.posting_locs = data.posting_locs
         for i in range(0, 124):
-            path = 'C:\\Users\\HP\\Desktop\\project data\\bucket\\postings_gcp\\' + str(i) + '_posting_locs.pickle'
+            path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\' + str(i) + '_posting_locs.pickle'
             print(path)
             with open(path, 'rb') as f:
                 data = pickle.load(f)
@@ -185,7 +184,7 @@ class MyFlaskApp(Flask):
         print(res)
         return res
 
-    def get_pageview(self, wiki_ids):
+    def get_page_view(self, wiki_ids):
         res = []
         wiki_ids = [14673744, 24899468]
         for i in wiki_ids:
