@@ -4,7 +4,7 @@ import csv
 from flask import Flask, request, jsonify
 import inverted_index_colab
 import inverted_index_gcp
-# import request
+import requests
 
 TUPLE_SIZE = 6
 TF_MASK = 2 ** 16 - 1  # Masking the 16 low bits of an integer
@@ -38,6 +38,20 @@ class MyFlaskApp(Flask):
                 tf = int.from_bytes(b[i * TUPLE_SIZE + 4:(i + 1) * TUPLE_SIZE], 'big')
                 posting_list.append((doc_id, tf))
             return posting_list
+
+    def read_posting_list_anchor(self, w):
+        inverted = self.inverted_anchor
+        with closing(inverted_index_gcp.MultiFileReader()) as reader:
+            locs = inverted.posting_locs[w]
+            s = str(locs[0][0])
+            locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\"+s, locs[0][1])]
+            b = reader.read(locs, inverted.df[w] * TUPLE_SIZE)
+            posting_list = []
+            for i in range(inverted.df[w]):
+                doc_id = int.from_bytes(b[i * TUPLE_SIZE:i * TUPLE_SIZE + 4], 'big')
+                tf = int.from_bytes(b[i * TUPLE_SIZE + 4:(i + 1) * TUPLE_SIZE], 'big')
+                posting_list.append((doc_id, tf))
+            return posting_list
     # def read_posting_list2(self, w):
     #     inverted = self.inverted2
     #     with closing(inverted_index_gcp.MultiFileReader()) as reader:
@@ -51,6 +65,7 @@ class MyFlaskApp(Flask):
     #             tf = int.from_bytes(b[i * TUPLE_SIZE + 4:(i + 1) * TUPLE_SIZE], 'big')
     #             posting_list.append((doc_id, tf))
     #         return posting_list
+
     def search(self, query):
         body_top = app.get_top_pages_by_body(query)
         # print(body_top)
@@ -124,6 +139,24 @@ class MyFlaskApp(Flask):
         # best_100_id = list(tfidf.keys())[0:100]
         # return best_100_id
 
+    def get_top_pages_by_anchor(self, query):
+        bool_dict = {}
+        doc_id = 0
+        tf = 0
+        for word in query:
+            if word not in self.inverted_anchor.df.keys():
+                continue
+            word_list = self.read_posting_list_anchor(word)
+            for id_tf in word_list:
+                doc_id = id_tf[0]  # 12
+                tf = id_tf[1]  # 1
+                if doc_id in bool_dict.keys():
+                    bool_dict[doc_id] = bool_dict[doc_id] + tf
+                else:
+                    bool_dict[doc_id] = tf
+        bool_dict = dict(sorted(bool_dict.items(), key=lambda item: item[1], reverse=True))
+        return bool_dict
+
     def get_top_pages_by_title(self, query):
         bool_dict = {}
         doc_id = 0
@@ -142,6 +175,7 @@ class MyFlaskApp(Flask):
         bool_dict = dict(sorted(bool_dict.items(), key=lambda item: item[1], reverse=True))
         return bool_dict
 
+
         # best_100_id = list(bool_dict.keys())[0:100]
         # return best_100_id
 
@@ -156,6 +190,7 @@ class MyFlaskApp(Flask):
 
         self.inverted = inverted_index_gcp.InvertedIndex()
         self.inverted_title = inverted_index_gcp.InvertedIndex()
+        self.inverted_anchor = inverted_index_gcp.InvertedIndex()
         self.corpus_size = 6348910
         self.id_len_dict = None
         self.id_title_dict = None
@@ -164,49 +199,62 @@ class MyFlaskApp(Flask):
         self.id_page_view_dict = {}
         self.id_page_view_dict2 = {}
 
-        #load body index
-        with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\index.pkl', 'rb') as f:
-            data = pickle.load(f)
-            self.inverted.df = data.df
-            self.inverted.posting_locs = data.posting_locs
+        # #load BODY index
+        # with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\index.pkl', 'rb') as f:
+        #     data = pickle.load(f)
+        #     self.inverted.df = data.df
+        #     self.inverted.posting_locs = data.posting_locs
+        #
+        # # load TITLE index
+        # with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\index.pkl', 'rb') as f:
+        #     data = pickle.load(f)
+        #     self.inverted_title.df = data.df
+        #     self.inverted_title.posting_locs = data.posting_locs
+        # for i in range(0, 124):
+        #     path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\' + str(i) + '_posting_locs.pickle'
+        #     with open(path, 'rb') as f:
+        #         data = pickle.load(f)
+        #         self.inverted_title.posting_locs.update(data)
 
-        # load title index
-        with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\index.pkl', 'rb') as f:
-            data = pickle.load(f)
-            self.inverted_title.df = data.df
-            self.inverted_title.posting_locs = data.posting_locs
-        for i in range(0, 124):
-            path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\' + str(i) + '_posting_locs.pickle'
-            with open(path, 'rb') as f:
-                data = pickle.load(f)
-                self.inverted_title.posting_locs.update(data)
+        # # load ANCHOR TEXT index
+        # with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\index.pkl', 'rb') as f:
+        #     data = pickle.load(f)
+        #     self.inverted_anchor.df = data.df
+        #     self.inverted_anchor.posting_locs = data.posting_locs
+        # for i in range(0, 124):
+        #     path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\' + str(i) + '_posting_locs.pickle'
+        #     with open(path, 'rb') as f:
+        #         data = pickle.load(f)
+        #         self.inverted_anchor.posting_locs.update(data)
+
 
         # load {id: page_view} dict
+        #with open('page_views.pkl', 'rb') as f:
         with open('C:\\Users\\HP\\Desktop\\project data\\page_views.pkl', 'rb') as f:
             data = pickle.load(f)
             self.id_page_view_dict = data
 
-        # load {id: len} dict
-        with open('C:\\Users\\HP\\Desktop\\project data\\docs_total_tokens.pkl', 'rb') as f:
-            self.id_len_dict = pickle.load(f)
-
-        # load {id: title} dict
-        with open('C:\\Users\\HP\\Desktop\\project data\\id_title_dict.pkl', 'rb') as f:
-            self.id_title_dict = pickle.load(f)
-            print()
+        # # load {id: len} dict
+        # with open('C:\\Users\\HP\\Desktop\\project data\\docs_total_tokens.pkl', 'rb') as f:
+        #     self.id_len_dict = pickle.load(f)
+        #
+        # # load {id: title} dict
+        # with open('C:\\Users\\HP\\Desktop\\project data\\id_title_dict.pkl', 'rb') as f:
+        #     self.id_title_dict = pickle.load(f)
+        #     print()
 
         # load {id: page_rank} dict
-        # with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
-        #     reader = csv.reader(inp)
-        #     print(reader)
-        #     i = 0
-        #     for row in reader:
-        #         i+=1
-        #         if i > 4000000:
-        #             self.id_page_rank_dict2[row[0]]=row[1]
-        #         else:
-        #             self.id_page_rank_dict[row[0]]=row[1]
+        with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
+            reader = csv.reader(inp)
+            i = 0
+            for row in reader:
+                i+=1
+                if i > 4000000:
+                    self.id_page_rank_dict2[row[0]]=row[1]
+                else:
+                    self.id_page_rank_dict[row[0]]=row[1]
         #import json
+        print()
 
         # Opening JSON file
         # f = open('queries_train.json')
@@ -264,6 +312,7 @@ class MyFlaskApp(Flask):
 
 
         # print(x)
+
         super(MyFlaskApp, self).run(host=host, port=port, debug=debug, **options)
 
     def get_page_rank_by_id(self, wiki_ids):
@@ -280,9 +329,9 @@ class MyFlaskApp(Flask):
 
     def get_page_view(self, wiki_ids):
         res = []
-        wiki_ids = [14673744, 24899468]
+        #wiki_ids = [14673744, 24899468]
         for i in wiki_ids:
-            i = str(i)
+            # i = str(i)
             if i in self.id_page_view_dict:
                 res.append(self.id_page_view_dict[i])
             elif i in self.id_page_view_dict2:
@@ -430,10 +479,17 @@ def search_anchor():
     '''
     res = []
     query = request.args.get('query', '')
+    query = query.split()
+    for i in range(len(query)):
+        query[i] = query[i].lower()
     if len(query) == 0:
-      return jsonify(res)
+        return jsonify(res)
+    print(query)
     # BEGIN SOLUTION
-
+    top_id_score_anchor = app.get_top_pages_by_anchor(query)
+    id = app.get_top_100_id(top_id_score_anchor)
+    id_title = app.get_id_title(id)
+    res = id_title
     # END SOLUTION
     return jsonify(res)
 
@@ -485,7 +541,7 @@ def get_pageview():
     if len(wiki_ids) == 0:
       return jsonify(res)
     # BEGIN SOLUTION
-    res = app.get_pageview(wiki_ids)
+    res = app.get_page_view(wiki_ids)
     # END SOLUTION
     return jsonify(res)
 
@@ -493,5 +549,12 @@ def get_pageview():
 if __name__ == '__main__':
     # run the Flask RESTful API, make the server publicly available (host='0.0.0.0') on port 8080
     app.run(host='0.0.0.0', port=8080, debug=True)
-    #request.post(url="http://192.168.14.2:8080/get_pagerank", json=[1, 2, 3])
+    import requests
+    x = requests.post(url="http://192.168.14.2:8080/get_pagerank", json=[1, 2, 3])
+    print(x.json())
+    #request.post(url="http://0.0.0.0:8080/get_pagerank", json=[1, 2, 3])
 
+
+
+    x = requests.post(url="http://192.168.14.2:8080/get_pagerank", json=[1, 2, 3])
+    print(x.json())
