@@ -68,7 +68,7 @@ class MyFlaskApp(Flask):
             else:
                 merge[j] = title_top[j]
         top = dict(sorted(merge.items(), key=lambda item: item[1], reverse=True))
-        print(top)
+        #print(top)
         id = app.get_top_100_id(top)
         id_title = app.get_id_title(id)
         return id_title
@@ -154,8 +154,6 @@ class MyFlaskApp(Flask):
 
     def run(self, host=None, port=None, debug=None, **options):
 
-        # request.post(url="http://192.168.14.2:8080/get_pagerank", json=[1, 2, 3])
-        # get_pagerank()
         self.inverted = inverted_index_gcp.InvertedIndex()
         self.inverted_title = inverted_index_gcp.InvertedIndex()
         self.corpus_size = 6348910
@@ -166,7 +164,7 @@ class MyFlaskApp(Flask):
         self.id_page_view_dict = {}
         self.id_page_view_dict2 = {}
 
-        # load body index
+        #load body index
         with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\index.pkl', 'rb') as f:
             data = pickle.load(f)
             self.inverted.df = data.df
@@ -198,18 +196,56 @@ class MyFlaskApp(Flask):
             print()
 
         # load {id: page_rank} dict
-        with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
-            reader = csv.reader(inp)
-            print(reader)
-            i = 0
-            for row in reader:
-                i+=1
-                if i > 4000000:
-                    self.id_page_rank_dict2[row[0]]=row[1]
-                else:
-                    self.id_page_rank_dict[row[0]]=row[1]
+        # with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
+        #     reader = csv.reader(inp)
+        #     print(reader)
+        #     i = 0
+        #     for row in reader:
+        #         i+=1
+        #         if i > 4000000:
+        #             self.id_page_rank_dict2[row[0]]=row[1]
+        #         else:
+        #             self.id_page_rank_dict[row[0]]=row[1]
+        #import json
 
-        # *** evaluation ***
+        # Opening JSON file
+        # f = open('queries_train.json')
+        #
+        # # returns JSON object as
+        # # a dictionary
+        # queries = json.load(f)
+        # print(queries)
+        #
+        # eval_body = {}
+        # eval_title= {}
+        # eval_search={}
+        # for i in queries.keys():
+        #     key = i
+        #     true = queries[i]
+        #     if ' ' in i:
+        #         i = i.split(' ')
+        #     else:
+        #         i =[i]
+        #     #pred_id_score = app.get_top_pages_by_title(i)
+        #     # pred_id_score = app.get_top_pages_by_body(i)
+        #     pred_id_score = app.search(i)
+        #     print("pred: ", pred_id_score)
+        #     ids=[]
+        #     for i in range(len(pred_id_score)):
+        #         add = pred_id_score[i][0]
+        #         # print("add", add)
+        #         # print("ids",ids)
+        #         ids.append(pred_id_score[i][0])
+        #     #pred_id = app.get_top_100_id(ids)
+        #     avg = app.average_precision(true, ids)
+        #     eval_search[key] = avg
+        # print(eval_search)
+        # body_values = eval_search.values()
+        # with open('eval_search.csv', 'w') as f:
+        #     write = csv.writer(f)
+        #     write.writerow(body_values)
+        # print()
+            # *** evaluation ***
         # for i in x.keys():
         #     q = i.split(' ')
         #     true = x[i]
@@ -457,5 +493,5 @@ def get_pageview():
 if __name__ == '__main__':
     # run the Flask RESTful API, make the server publicly available (host='0.0.0.0') on port 8080
     app.run(host='0.0.0.0', port=8080, debug=True)
-    request.post(url="http://192.168.14.2:8080/get_pagerank", json=[1, 2, 3])
+    #request.post(url="http://192.168.14.2:8080/get_pagerank", json=[1, 2, 3])
 
