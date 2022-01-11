@@ -4,7 +4,7 @@ import csv
 from time import time
 
 from flask import Flask, request, jsonify
-import inverted_index_colab
+# import inverted_index_colab
 import inverted_index_gcp
 import requests
 
@@ -18,7 +18,8 @@ class MyFlaskApp(Flask):
         with closing(inverted_index_gcp.MultiFileReader()) as reader:
             locs = inverted.posting_locs[w]
             s = str(locs[0][0])
-            locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\"+s, locs[0][1])]
+            locs = [("project data/postings_gcp/"+s, locs[0][1])]
+            #locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\"+s, locs[0][1])]
             b = reader.read(locs, inverted.df[w] * TUPLE_SIZE)
             posting_list = []
             for i in range(inverted.df[w]):
@@ -32,7 +33,8 @@ class MyFlaskApp(Flask):
         with closing(inverted_index_gcp.MultiFileReader()) as reader:
             locs = inverted.posting_locs[w]
             s = str(locs[0][0])
-            locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\"+s, locs[0][1])]
+            locs = [("project data/postings_gcp_title/"+s, locs[0][1])]
+            #locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\"+s, locs[0][1])]
             b = reader.read(locs, inverted.df[w] * TUPLE_SIZE)
             posting_list = []
             for i in range(inverted.df[w]):
@@ -46,7 +48,7 @@ class MyFlaskApp(Flask):
         with closing(inverted_index_gcp.MultiFileReader()) as reader:
             locs = inverted.posting_locs[w]
             s = str(locs[0][0])
-            locs = [("C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\"+s, locs[0][1])]
+            locs = [("project data/postings_gcp_anchor/"+s, locs[0][1])]
             b = reader.read(locs, inverted.df[w] * TUPLE_SIZE)
             posting_list = []
             for i in range(inverted.df[w]):
@@ -209,50 +211,60 @@ class MyFlaskApp(Flask):
         self.id_page_view_dict2 = {}
 
         #load BODY index
-        with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\index.pkl', 'rb') as f:
+        with open('project data/postings_gcp/index.pkl', 'rb') as f:
+        #with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp\\index.pkl', 'rb') as f:
             data = pickle.load(f)
             self.inverted.df = data.df
             self.inverted.posting_locs = data.posting_locs
 
         # load TITLE index
-        with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\index.pkl', 'rb') as f:
+        with open('project data/postings_gcp_title/index.pkl', 'rb') as f:
+        #with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\index.pkl', 'rb') as f:
             data = pickle.load(f)
             self.inverted_title.df = data.df
             self.inverted_title.posting_locs = data.posting_locs
         for i in range(0, 124):
-            path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\' + str(i) + '_posting_locs.pickle'
+            if i==78:
+                continue
+            path = 'project data/postings_gcp_title/' + str(i) + '_posting_locs.pickle'
+            #path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_title\\' + str(i) + '_posting_locs.pickle'
             with open(path, 'rb') as f:
                 data = pickle.load(f)
                 self.inverted_title.posting_locs.update(data)
 
         # load ANCHOR TEXT index
-        with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\index.pkl', 'rb') as f:
+        with open('project data/postings_gcp_anchor/index.pkl', 'rb') as f:
+        #with open('C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\index.pkl', 'rb') as f:
             data = pickle.load(f)
             self.inverted_anchor.df = data.df
             self.inverted_anchor.posting_locs = data.posting_locs
         for i in range(0, 124):
-            path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\' + str(i) + '_posting_locs.pickle'
+            path = 'project data/postings_gcp_anchor/' + str(i) + '_posting_locs.pickle'
+            #path = 'C:\\Users\\HP\\Desktop\\project data\\postings_gcp_anchor\\' + str(i) + '_posting_locs.pickle'
             with open(path, 'rb') as f:
                 data = pickle.load(f)
                 self.inverted_anchor.posting_locs.update(data)
 
         # load {id: page_view} dict
-        #with open('page_views.pkl', 'rb') as f:
-        with open('C:\\Users\\HP\\Desktop\\project data\\page_views.pkl', 'rb') as f:
+        with open('project data/page_views.pkl', 'rb') as f:
+        #with open('C:\\Users\\HP\\Desktop\\project data\\page_views.pkl', 'rb') as f:
             data = pickle.load(f)
             self.id_page_view_dict = data
 
         # load {id: len} dict
-        with open('C:\\Users\\HP\\Desktop\\project data\\docs_total_tokens.pkl', 'rb') as f:
+        with open('project data/docs_total_tokens.pkl', 'rb') as f:
+        #with open('C:\\Users\\HP\\Desktop\\project data\\docs_total_tokens.pkl', 'rb') as f:
             self.id_len_dict = pickle.load(f)
 
         #load {id: title} dict
-        with open('C:\\Users\\HP\\Desktop\\project data\\id_title_dict.pkl', 'rb') as f:
+        with open('project data/id_title_dict.pkl', 'rb') as f:
+        #with open('C:\\Users\\HP\\Desktop\\project data\\id_title_dict.pkl', 'rb') as f:
             self.id_title_dict = pickle.load(f)
             print()
 
         # load {id: page_rank} dict
-        with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
+        with open('project data/id_page_rank.xls.csv', mode='r') as inp:
+        #with open('C:\\Users\\HP\\Desktop\\project data\\id_page_rank.xls.csv', mode='r') as inp:
             reader = csv.reader(inp)
             i = 0
             for row in reader:
