@@ -74,24 +74,30 @@ class MyFlaskApp(Flask):
         query = list(set(query))
         body_top = app.get_top_pages_by_body(query)
         # title_top = app.get_top_pages_by_title(query_without_stopwords)
-        query = list(set(query))
+        # query = list(set(query))
+        # clean = []
+        # stop = ["what", "you", "want", "why", "make", "is", "the", "how"]
+        # for w in query:
+        #     if w not in stop:
+        #         clean.append(w)
+        # query = clean
         title_top = app.get_top_pages_by_title(query)
         # print(title_top)
 
         merge = {}
         for i in body_top.keys():
-            body_top[i] = body_top[i] * 50
+            body_top[i] = body_top[i] * 80
             merge[i] = body_top[i]
         for j in title_top.keys():
-            title_top[j] = title_top[j] * 50
+            title_top[j] = title_top[j] * 1000
             if j in merge:
                 merge[j] = merge[j] + title_top[j]
             else:
                 merge[j] = title_top[j]
-        print(merge.values())
-        for k in merge.keys():
-            if k in self.id_page_view_dict:
-                merge[k] += self.id_page_view_dict[k]/250000
+        # print(merge.values())
+        # for k in merge.keys():
+        #     if k in self.id_page_view_dict:
+        #         merge[k] += self.id_page_view_dict[k]/250000
 
         # #add weight by page rank
         # for k in merge.keys():
@@ -131,16 +137,24 @@ class MyFlaskApp(Flask):
                 if tf == 0:
                     continue
                 doc_len_normal = self.id_len_dict[doc_id]  # 4, 3, 10
-                if doc_len_normal < 200:
-                    doc_len_normal *= 100000
-                elif doc_len_normal > 5000:
-                     doc_len_normal /= 10000
+                if 0 <= doc_len_normal <= 80:
+                    doc_len_normal *= 10000
+                elif 80 <= doc_len_normal <= 200:
+                    doc_len_normal *= 100
+                elif 200 <= doc_len_normal <= 600:
+                    doc_len_normal *= 10
+                # elif 500 <= doc_len_normal <= 3000:
+                #     doc_len_normal /= 50
+                # # elif 3000 <= doc_len_normal <= 5000:
+                # #     doc_len_normal /= 2000
+                elif doc_len_normal > 3000:
+                     doc_len_normal /= 50
                 # elif doc_len_normal > 500:
                 #     doc_len_normal /= 10
-                elif doc_len_normal > 1000:
-                    doc_len_normal /= 1000
-                elif doc_len_normal > 500:
-                    doc_len_normal /= 50
+                # elif doc_len_normal > 1000:
+                #     doc_len_normal /= 1000
+                # elif doc_len_normal > 500:
+                #     doc_len_normal /= 50
 
                 # elif doc_len_normal > 700:
                 #     doc_len_normal /= 1000
