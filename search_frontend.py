@@ -71,27 +71,39 @@ class MyFlaskApp(Flask):
     #         return posting_list
 
     def search(self, query):
+        query = list(set(query))
         body_top = app.get_top_pages_by_body(query)
-        # print(body_top)
+        # title_top = app.get_top_pages_by_title(query_without_stopwords)
+        query = list(set(query))
         title_top = app.get_top_pages_by_title(query)
         # print(title_top)
 
         merge = {}
         for i in body_top.keys():
-            body_top[i] = body_top[i] * 0.6
+            body_top[i] = body_top[i] * 50
             merge[i] = body_top[i]
         for j in title_top.keys():
-            title_top[j] = title_top[j] * 2
+            title_top[j] = title_top[j] * 50
             if j in merge:
                 merge[j] = merge[j] + title_top[j]
             else:
                 merge[j] = title_top[j]
-        # add weight by page rank
+        print(merge.values())
+        for k in merge.keys():
+            if k in self.id_page_view_dict:
+                merge[k] += self.id_page_view_dict[k]/250000
+
+        # #add weight by page rank
         # for k in merge.keys():
+        #     k_str = str(k)
         #     if k < 4000000:
-        #         merge[k] *= self.id_page_rank_dict
+        #         if k_str not in self.id_page_rank_dict:
+        #             continue
+        #         merge[k] += float(self.id_page_rank_dict[k_str])/500
         #     else:
-        #         merge[k] *= self.id_page_rank_dict2
+        #         if k_str not in self.id_page_rank_dict2:
+        #             continue
+        #         merge[k] += float(self.id_page_rank_dict2[k_str])/500
 
         top = dict(sorted(merge.items(), key=lambda item: item[1], reverse=True))
         #print(top)
@@ -114,21 +126,21 @@ class MyFlaskApp(Flask):
             idf = math.log(self.corpus_size / df, 2)  # log2(6M/3)
 
             for id_tf in word_list:
-                doc_id = id_tf[0]  # 12
-                tf = id_tf[1]  # 2
-                if tf==0:
+                doc_id = id_tf[0]
+                tf = id_tf[1]
+                if tf == 0:
                     continue
                 doc_len_normal = self.id_len_dict[doc_id]  # 4, 3, 10
-                if doc_len_normal < 100:
-                    doc_len_normal *= 10000
-                elif doc_len_normal > 1500:
-                    doc_len_normal /= 100
+                if doc_len_normal < 200:
+                    doc_len_normal *= 100000
+                elif doc_len_normal > 5000:
+                     doc_len_normal /= 10000
+                # elif doc_len_normal > 500:
+                #     doc_len_normal /= 10
+                elif doc_len_normal > 1000:
+                    doc_len_normal /= 1000
                 elif doc_len_normal > 500:
-                    doc_len_normal /= 10
-                elif doc_len_normal > 300:
-                    doc_len_normal /= 10
-                elif doc_len_normal > 50:
-                    doc_len_normal /= 5
+                    doc_len_normal /= 50
 
                 # elif doc_len_normal > 700:
                 #     doc_len_normal /= 1000
@@ -145,10 +157,10 @@ class MyFlaskApp(Flask):
 
         tfidf = dict(sorted(tfidf.items(), key=lambda item: item[1], reverse=True))
         # tfidf = {14:0.41, 12:0.205, 173:0.08}
+        # tfidf = list(tfidf.items())[0:100]
+        # tfidf = dict(tfidf)
 
         return tfidf
-        # best_100_id = list(tfidf.keys())[0:100]
-        # return best_100_id
 
     def get_top_pages_by_anchor(self, query):
         bool_dict = {}
@@ -208,7 +220,7 @@ class MyFlaskApp(Flask):
         self.id_page_rank_dict = {}
         self.id_page_rank_dict2 = {}
         self.id_page_view_dict = {}
-        self.id_page_view_dict2 = {}
+        #self.id_page_view_dict2 = {}
 
         #load BODY index
         with open('project data/postings_gcp/index.pkl', 'rb') as f:
@@ -216,6 +228,7 @@ class MyFlaskApp(Flask):
             data = pickle.load(f)
             self.inverted.df = data.df
             self.inverted.posting_locs = data.posting_locs
+        print("body index loaded")
 
         # load TITLE index
         with open('project data/postings_gcp_title/index.pkl', 'rb') as f:
@@ -231,6 +244,7 @@ class MyFlaskApp(Flask):
             with open(path, 'rb') as f:
                 data = pickle.load(f)
                 self.inverted_title.posting_locs.update(data)
+        print("title index loaded")
 
         # load ANCHOR TEXT index
         with open('project data/postings_gcp_anchor/index.pkl', 'rb') as f:
@@ -244,23 +258,27 @@ class MyFlaskApp(Flask):
             with open(path, 'rb') as f:
                 data = pickle.load(f)
                 self.inverted_anchor.posting_locs.update(data)
+        print("anchor index loaded")
 
         # load {id: page_view} dict
         with open('project data/page_views.pkl', 'rb') as f:
         #with open('C:\\Users\\HP\\Desktop\\project data\\page_views.pkl', 'rb') as f:
             data = pickle.load(f)
             self.id_page_view_dict = data
+        print("page views loaded")
+        # print(list(self.id_page_view_dict.items())[0:3])
 
         # load {id: len} dict
         with open('project data/docs_total_tokens.pkl', 'rb') as f:
         #with open('C:\\Users\\HP\\Desktop\\project data\\docs_total_tokens.pkl', 'rb') as f:
             self.id_len_dict = pickle.load(f)
+        print("id: len loaded")
 
         #load {id: title} dict
         with open('project data/id_title_dict.pkl', 'rb') as f:
         #with open('C:\\Users\\HP\\Desktop\\project data\\id_title_dict.pkl', 'rb') as f:
             self.id_title_dict = pickle.load(f)
-            print()
+        print("id: title loaded")
 
         # load {id: page_rank} dict
         with open('project data/id_page_rank.xls.csv', mode='r') as inp:
@@ -273,6 +291,10 @@ class MyFlaskApp(Flask):
                     self.id_page_rank_dict2[row[0]] = row[1]
                 else:
                     self.id_page_rank_dict[row[0]] = row[1]
+        print("id: page rank loaded")
+        # print(list(self.id_page_rank_dict2.items())[0:3])
+        # print(list(self.id_page_rank_dict.items())[0:3])
+
         #import json
 
 
@@ -403,7 +425,7 @@ def search():
       return jsonify(res)
     # BEGIN SOLUTION
     res = app.search(query)
-    print(res)
+    # print(res)
     # top_100_id = app.get_top_100_pages(query)
     # top_100_id_title = app.get_id_title(top_100_id)
     # res = top_100_id_title
